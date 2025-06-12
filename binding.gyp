@@ -9,20 +9,26 @@
           'SpectreMitigation': 'Spectre'
         },
         'msvs_settings': {
-            'VCCLCompilerTool': {
-              'AdditionalOptions': [
-                '/guard:cf',
-                '/w34244',
-                '/we4267',
-                '/ZH:SHA_256'
-              ]
-            },
-            'VCLinkerTool': {
-              'AdditionalOptions': [
-                '/guard:cf'
-              ]
-            }
+          'VCCLCompilerTool': {
+            'AdditionalOptions': [
+              '/guard:cf',
+              '/w34244',
+              '/we4267',
+              '/ZH:SHA_256'
+            ]
           },
+          'VCLinkerTool': {
+            'AdditionalOptions': [
+              '/guard:cf'
+            ]
+          }
+        },
+      }],
+      ['OS=="android"', {
+          'variables': {
+            'android_ndk_path': '',
+          }
+        },
       }],
     ],
   },
