@@ -1,9 +1,5 @@
 {
   'target_defaults': {
-    'variables': {
-       #'/path/to/your/android-ndk',
-      'android_ndk_path': '',
-    },
     'dependencies': [
       "<!(node -p \"require('node-addon-api').targets\"):node_addon_api_except",
     ],
@@ -90,7 +86,11 @@
                 '-lutil'
               ]
             }]
-          ]
+          ],
+          'variables': {
+            #'/path/to/your/android-ndk',
+            'android_ndk_path': '',
+          }
         }
       ]
     }],
