@@ -57,9 +57,9 @@ jobs:
             command: prebuildify:gyp-cross
             args: -i almalinux-devtoolset11 -i alpine
           - os: ubuntu-22.04
-            label: armv6+armv7
+            label: armv7
             command: prebuildify:gyp-cross
-            args: -i linux-arm64-lts -i linux-armv7 -i linux-armv6
+            args: -i linux-arm64-lts -i linux-armv7
           - os: ubuntu-22.04
             label: musl+arm64-musl
             command: prebuildify:gyp-cross
