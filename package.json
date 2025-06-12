@@ -43,7 +43,7 @@
     "posttest": "npm run lint",
     "prepare": "npm run build",
     "prepublishOnly": "npm run build",
-    "prebuildify:gyp:x86": "prebuildify --napi false --strip -t 22.0.0 -t 20.0.0 -t 18.0.0",
+    "prebuildify:gyp:x86": "prebuildify --napi false --strip -t 22.0.0 -t 20.0.0 -t 18.20.0",
     "prebuildify:gyp": "prebuildify --napi false --strip -t 24.0.0 -t 22.0.0 -t 20.0.0 -t 18.0.0",
     "prebuildify:gyp-cross": "prebuildify-cross --napi false --strip -t 24.0.0 -t 22.0.0 -t 20.0.0 -t 18.0.0"
   },
