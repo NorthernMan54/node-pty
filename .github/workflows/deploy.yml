@@ -34,11 +34,10 @@ jobs:
             command: prebuildify:gyp
             args: --arch arm64
           # Windows x86
-          # - os: windows-2019
-          #   label: x86
-          #   node_arch: x86
-          #   command: prebuildify:gyp
-          #   args: --arch x86 --target 22.0.0 --target 20.0.0 --target 18.0.0
+          - os: windows-2019
+            label: x86
+            node_arch: x86
+            command: prebuildify:gyp:x86
           # Windows x64
           - os: windows-2019
             label: x64
