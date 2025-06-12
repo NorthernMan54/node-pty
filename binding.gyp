@@ -86,11 +86,7 @@
                 '-lutil'
               ]
             }]
-          ],
-          'variables': {
-            #'/path/to/your/android-ndk',
-            'android_ndk_path': '',
-          }
+          ]
         }
       ]
     }],
