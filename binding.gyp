@@ -25,9 +25,8 @@
         },
       }],
       ['OS=="android"', {
-          'variables': {
-            'android_ndk_path': '',
-          }
+        'variables': {
+          'android_ndk_path': '',
         },
       }],
     ],
