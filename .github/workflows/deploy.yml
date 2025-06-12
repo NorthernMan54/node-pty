@@ -21,40 +21,40 @@ jobs:
             label: x64
             node_arch: x64
             command: prebuildify:gyp
-            args: --arch x64 -t 24.0.0 -t 22.0.0 -t 20.0.0 -t 18.0.0
+            args: --arch x64 --target 24.0.0 --target 22.0.0 --target 20.0.0 --target 18.0.0
           # Arm64 Mac
           - os: macos-14
             label: arm64
             node_arch: arm64
             command: prebuildify:gyp
-            args: --arch arm64 -t 24.0.0 -t 22.0.0 -t 20.0.0 -t 18.0.0
+            args: --arch arm64 --target 24.0.0 --target 22.0.0 --target 20.0.0 --target 18.0.0
           - os: macos-15
             label: arm64
             node_arch: arm64
             command: prebuildify:gyp
-            args: --arch arm64 -t 24.0.0 -t 22.0.0 -t 20.0.0 -t 18.0.0
+            args: --arch arm64 --target 24.0.0 --target 22.0.0 --target 20.0.0 --target 18.0.0
           # Windows x86
           - os: windows-2019
             label: x86
             node_arch: x86
             command: prebuildify:gyp
-            args: -t 22.0.0 -t 20.0.0 -t 18.0.0
+            args: --target 22.0.0 --target 20.0.0 --target 18.0.0
           # Windows x64
           - os: windows-2019
             label: x64
             node_arch: x64
             command: prebuildify:gyp
-            args: -t 24.0.0 -t 22.0.0 -t 20.0.0 -t 18.0.0
+            args: --target 24.0.0 --target 22.0.0 --target 20.0.0 --target 18.0.0
           - os: windows-2022
             label: x64
             node_arch: x64
             command: prebuildify:gyp
-            args: -t 24.0.0 -t 22.0.0 -t 20.0.0 -t 18.0.0
+            args: --target 24.0.0 --target 22.0.0 --target 20.0.0 --target 18.0.0
           - os: windows-2025
             label: x64
             node_arch: x64
             command: prebuildify:gyp
-            args: -t 24.0.0 -t 22.0.0 -t 20.0.0 -t 18.0.0
+            args: --target 24.0.0 --target 22.0.0 --target 20.0.0 --target 18.0.0
           # Ubuntu 22.04
           - os: ubuntu-22.04
             label: alpine
