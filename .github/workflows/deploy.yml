@@ -38,23 +38,23 @@ jobs:
             label: x86
             node_arch: x86
             command: prebuildify:gyp
-            args: "--target 22.0.0 --target 20.0.0 --target 18.0.0"
+            args: --arch x86 --target 22.0.0 --target 20.0.0 --target 18.0.0
           # Windows x64
           - os: windows-2019
             label: x64
             node_arch: x64
             command: prebuildify:gyp
-            args: "--target 24.0.0 --target 22.0.0 --target 20.0.0 --target 18.0.0"
+            args: --arch x64 --target 24.0.0 --target 22.0.0 --target 20.0.0 --target 18.0.0
           - os: windows-2022
             label: x64
             node_arch: x64
             command: prebuildify:gyp
-            args: "--target 24.0.0 --target 22.0.0 --target 20.0.0 --target 18.0.0"
+            args: --arch x64 --target 24.0.0 --target 22.0.0 --target 20.0.0 --target 18.0.0
           - os: windows-2025
             label: x64
             node_arch: x64
             command: prebuildify:gyp
-            args: "--target 24.0.0 --target 22.0.0 --target 20.0.0 --target 18.0.0"
+            args: --arch x64 --target 24.0.0 --target 22.0.0 --target 20.0.0 --target 18.0.0
           # Ubuntu 22.04
           - os: ubuntu-22.04
             label: alpine
