@@ -48,17 +48,14 @@ jobs:
             runner: ubuntu-22.04
             arch: x64
             musl: true
-            muslImage: node:22-alpine
           - platform: linux-musl-arm64
             runner: ubuntu-22.04
             arch: arm64
             musl: true
-            muslImage: arm64v8/node:22-alpine
           - platform: linux-musl-arm
             runner: ubuntu-22.04
             arch: arm
             musl: true
-            muslImage: arm32v7/node:22-alpine
 
     steps:
       - name: Checkout
@@ -115,12 +112,18 @@ jobs:
       - name: Build in Alpine/musl container
         if: matrix.musl
         run: |
+          case "${{ matrix.arch }}" in
+            x64)   PLATFORM="linux/amd64" ;;
+            arm64) PLATFORM="linux/arm64" ;;
+            arm)   PLATFORM="linux/arm/v7" ;;
+          esac
           docker run --rm \
+            --platform "$PLATFORM" \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
             -e ARCH=${{ matrix.arch }} \
             -e npm_config_arch=${{ matrix.arch }} \
-            ${{ matrix.muslImage }} sh -c "
+            node:22-alpine sh -c "
               set -e
               apk add --no-cache python3 make g++ linux-headers
               npm ci
