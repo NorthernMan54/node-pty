@@ -1,0 +1,75 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      quality:
+        description: 'Release quality'
+        required: true
+        type: choice
+        options:
+          - beta
+          - stable
+        default: beta
+      publishPackage:
+        description: '🚀 Publish to npm'
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-22.04
+    environment: ${{ inputs.quality == 'stable' && 'npm-publish-stable' || 'npm-publish-beta' }}
+    permissions:
+      contents: read
+      id-token: write  # Required for OIDC publishing to npm
+      actions: read    # Required to download artifacts from another workflow
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download prebuilds artifact from prebuilds workflow
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: prebuilds.yml
+          commit: ${{ github.sha }}
+          name: prebuilds-${{ github.sha }}
+          path: prebuilds/
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Make spawn-helper executable
+        run: chmod +x prebuilds/darwin-*/spawn-helper || true
+
+      - name: Install dependencies (skip native build)
+        run: npm ci --ignore-scripts
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Increment version
+        run: node scripts/increment-version.js
+
+      - name: Show version to be published
+        run: node -p "require('./package.json').version"
+
+      - name: Publish to npm (beta)
+        if: inputs.publishPackage && inputs.quality == 'beta'
+        run: npm publish --tag beta --provenance --access public
+
+      - name: Publish to npm (stable)
+        if: inputs.publishPackage && inputs.quality == 'stable'
+        run: npm publish --tag latest --provenance --access public
+
+      - name: Dry run (publishPackage=false)
+        if: '!inputs.publishPackage'
+        run: npm publish --tag ${{ inputs.quality == 'stable' && 'latest' || 'beta' }} --provenance --dry-run
