@@ -6,6 +6,10 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: prebuilds
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build (${{ matrix.platform }})
@@ -21,10 +25,10 @@ jobs:
             runner: windows-11-arm
             arch: arm64
           - platform: darwin-x64
-            runner: macos-13
+            runner: macos-15-intel
             arch: x64
           - platform: darwin-arm64
-            runner: macos-14
+            runner: macos-15
             arch: arm64
           - platform: linux-x64
             runner: ubuntu-22.04
@@ -39,7 +43,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
 
@@ -120,7 +124,7 @@ jobs:
             runner: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
 
