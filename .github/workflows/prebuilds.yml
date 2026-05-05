@@ -40,6 +40,25 @@ jobs:
             runner: ubuntu-22.04
             arch: arm
             crossCompile: true
+          - platform: linux-ia32
+            runner: ubuntu-22.04
+            arch: ia32
+            crossCompile: true
+          - platform: linux-musl-x64
+            runner: ubuntu-22.04
+            arch: x64
+            musl: true
+            muslImage: node:22-alpine
+          - platform: linux-musl-arm64
+            runner: ubuntu-22.04
+            arch: arm64
+            musl: true
+            muslImage: arm64v8/node:22-alpine
+          - platform: linux-musl-arm
+            runner: ubuntu-22.04
+            arch: arm
+            musl: true
+            muslImage: arm32v7/node:22-alpine
 
     steps:
       - name: Checkout
@@ -53,7 +72,7 @@ jobs:
           node-version: '22.x'
 
       - name: Install sysroot (Linux x64/arm64)
-        if: runner.os == 'Linux' && !matrix.crossCompile
+        if: runner.os == 'Linux' && !matrix.crossCompile && !matrix.musl
         run: |
           set -eo pipefail
           sudo apt-get update -qq
@@ -66,7 +85,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install cross-compiler (Linux arm)
-        if: matrix.crossCompile
+        if: matrix.crossCompile && matrix.arch == 'arm'
         run: |
           set -eo pipefail
           sudo apt-get update -qq
@@ -74,13 +93,41 @@ jobs:
           echo "CC=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
           echo "CXX=arm-linux-gnueabihf-g++" >> $GITHUB_ENV
 
+      - name: Install cross-compiler (Linux ia32)
+        if: matrix.crossCompile && matrix.arch == 'ia32'
+        run: |
+          set -eo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y gcc-multilib g++-multilib
+          echo "CC=gcc" >> $GITHUB_ENV
+          echo "CXX=g++" >> $GITHUB_ENV
+
       - name: Configure compiler (macOS)
         if: runner.os == 'macOS'
         run: |
           echo "CC=clang" >> $GITHUB_ENV
           echo "CXX=clang++" >> $GITHUB_ENV
 
+      - name: Set up QEMU (musl arm/arm64)
+        if: matrix.musl && matrix.arch != 'x64'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build in Alpine/musl container
+        if: matrix.musl
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            -e ARCH=${{ matrix.arch }} \
+            -e npm_config_arch=${{ matrix.arch }} \
+            ${{ matrix.muslImage }} sh -c "
+              set -e
+              apk add --no-cache python3 make g++ linux-headers
+              npm ci
+            "
+
       - name: Install dependencies and build
+        if: '!matrix.musl'
         run: npm ci
         env:
           ARCH: ${{ matrix.arch }}
@@ -90,7 +137,7 @@ jobs:
           SYSROOT_PATH: ${{ env.SYSROOT_PATH }}
 
       - name: Verify GLIBC requirements (Linux)
-        if: runner.os == 'Linux' && !matrix.crossCompile
+        if: runner.os == 'Linux' && !matrix.crossCompile && !matrix.musl
         run: |
           EXPECTED_GLIBC_VERSION="2.28" \
           EXPECTED_GLIBCXX_VERSION="3.4.25" \
@@ -98,11 +145,11 @@ jobs:
           ./scripts/linux/verify-glibc-requirements.sh
 
       - name: Make spawn-helper executable (macOS/Linux)
-        if: runner.os != 'Windows'
+        if: runner.os != 'Windows' && !matrix.musl
         run: chmod +x build/Release/spawn-helper || true
 
       - name: Upload platform artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: prebuild-${{ matrix.platform }}
           path: build/Release/
@@ -179,7 +226,7 @@ jobs:
           find prebuilds -type f
 
       - name: Upload combined prebuilds artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: prebuilds-${{ github.sha }}
           path: prebuilds/
