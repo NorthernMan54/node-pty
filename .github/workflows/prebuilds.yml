@@ -107,7 +107,7 @@ jobs:
 
       - name: Set up QEMU (musl arm/arm64)
         if: matrix.musl && matrix.arch != 'x64'
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Build in Alpine/musl container
         if: matrix.musl
@@ -184,7 +184,7 @@ jobs:
           node-version: '22.x'
 
       - name: Download prebuild for this platform
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: prebuild-${{ matrix.platform }}
           path: build/Release/
@@ -212,7 +212,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Download all platform artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: prebuild-*
           path: prebuilds-staging
