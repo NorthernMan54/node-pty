@@ -1,5 +1,5 @@
 {
-  "name": "node-pty",
+  "name": "@northernman54/node-pty",
   "description": "Fork pseudoterminals in Node.JS",
   "author": {
     "name": "Microsoft Corporation"
@@ -62,5 +62,8 @@
     "node-gyp": "^11.4.2",
     "ps-list": "^6.0.0",
     "typescript": "^5.0.0"
+  },
+  "allowScripts": {
+    "fsevents@2.3.3": true
   }
 }
