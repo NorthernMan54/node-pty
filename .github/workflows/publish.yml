@@ -23,20 +23,20 @@ jobs:
     runs-on: ubuntu-22.04
     environment: ${{ inputs.quality == 'stable' && 'npm-publish-stable' || 'npm-publish-beta' }}
     permissions:
-      contents: write   # CHANGED: was 'read' — now required to create tags/releases
+      contents: write   # Required to create tags/releases
       id-token: write   # Required for OIDC publishing to npm
       actions: read     # Required to download artifacts from another workflow
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          persist-credentials: true
-          fetch-depth: 0   # ADDED: needed so tag/push has full history, not a shallow clone
+          persist-credentials: true   # Needed so git push can authenticate
+          fetch-depth: 0              # Full history so tag/push works cleanly
 
       - name: Use Node.js 24.x
         uses: actions/setup-node@v6
         with:
-          node-version: '24.x'   # CHANGED: pinned explicitly rather than lts/* — see prior discussion
+          node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Download prebuilds artifact from prebuilds workflow
@@ -75,12 +75,14 @@ jobs:
         if: '!inputs.publishPackage'
         run: npm publish --tag ${{ inputs.quality == 'stable' && 'latest' || 'beta' }} --provenance --dry-run
 
-      # ADDED: everything below is new
-
-      - name: Get published version
+      - name: Get published version from npm
         if: inputs.publishPackage
         id: version
-        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+        run: |
+          PKG_NAME=$(node -p "require('./package.json').name")
+          NPM_TAG="${{ inputs.quality == 'stable' && 'latest' || 'beta' }}"
+          VERSION=$(npm view "$PKG_NAME@$NPM_TAG" version)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Create and push git tag
         if: inputs.publishPackage
