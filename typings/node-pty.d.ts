@@ -3,7 +3,7 @@
  * Copyright (c) 2018, Microsoft Corporation (MIT License).
  */
 
-declare module 'node-pty' {
+declare module '@northernman54/node-pty' {
   /**
    * Forks a process as a pseudoterminal.
    * @param file The file to launch.
