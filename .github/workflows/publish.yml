@@ -92,6 +92,17 @@ jobs:
           git tag "v${{ steps.version.outputs.version }}"
           git push origin "v${{ steps.version.outputs.version }}"
 
+      - name: Archive prebuilds per platform
+        if: inputs.publishPackage
+        run: |
+          cd prebuilds
+          for dir in */; do
+            platform="${dir%/}"
+            tar -czf "../prebuilds-${platform}.tar.gz" "$platform"
+          done
+          cd ..
+          ls -la prebuilds-*.tar.gz
+
       - name: Create GitHub Release
         if: inputs.publishPackage
         uses: softprops/action-gh-release@v2
@@ -101,4 +112,4 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ inputs.quality == 'beta' }}
           files: |
-            prebuilds/**
+            prebuilds-*.tar.gz
