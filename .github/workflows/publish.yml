@@ -30,7 +30,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          persist-credentials: false
+          persist-credentials: true
           fetch-depth: 0   # ADDED: needed so tag/push has full history, not a shallow clone
 
       - name: Use Node.js 24.x
