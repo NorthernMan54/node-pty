@@ -23,19 +23,20 @@ jobs:
     runs-on: ubuntu-22.04
     environment: ${{ inputs.quality == 'stable' && 'npm-publish-stable' || 'npm-publish-beta' }}
     permissions:
-      contents: read
-      id-token: write  # Required for OIDC publishing to npm
-      actions: read    # Required to download artifacts from another workflow
+      contents: write   # CHANGED: was 'read' — now required to create tags/releases
+      id-token: write   # Required for OIDC publishing to npm
+      actions: read     # Required to download artifacts from another workflow
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           persist-credentials: false
+          fetch-depth: 0   # ADDED: needed so tag/push has full history, not a shallow clone
 
-      - name: Use Node.js 22.x
+      - name: Use Node.js 24.x
         uses: actions/setup-node@v6
         with:
-          node-version: 'lts/*'
+          node-version: '24.x'   # CHANGED: pinned explicitly rather than lts/* — see prior discussion
           registry-url: 'https://registry.npmjs.org'
 
       - name: Download prebuilds artifact from prebuilds workflow
@@ -73,3 +74,29 @@ jobs:
       - name: Dry run (publishPackage=false)
         if: '!inputs.publishPackage'
         run: npm publish --tag ${{ inputs.quality == 'stable' && 'latest' || 'beta' }} --provenance --dry-run
+
+      # ADDED: everything below is new
+
+      - name: Get published version
+        if: inputs.publishPackage
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push git tag
+        if: inputs.publishPackage
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
+
+      - name: Create GitHub Release
+        if: inputs.publishPackage
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          prerelease: ${{ inputs.quality == 'beta' }}
+          files: |
+            prebuilds/**
