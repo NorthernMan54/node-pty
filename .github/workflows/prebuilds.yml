@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build (${{ matrix.platform }})
+    name: Build and Test(${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
