@@ -217,10 +217,10 @@ jobs:
 
   publish:
     name: Publish to npm
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     needs: archive
     runs-on: ubuntu-22.04
-    environment: ${{ inputs.branch == 'main' && 'npm-publish-stable' || 'npm-publish-test' }}
+    environment: ${{ (github.event_name == 'workflow_dispatch' && inputs.branch == 'main') && 'npm-publish-stable' || 'npm-publish-test' }}
     permissions:
       contents: write   # Required to create tags/releases
       id-token: write   # Required for OIDC publishing to npm
@@ -230,6 +230,23 @@ jobs:
         with:
           persist-credentials: true   # Needed so git push can authenticate
           fetch-depth: 0              # Full history so tag/push works cleanly
+
+      # ---- Release parameters ----
+      # workflow_dispatch: driven by the `branch` and `publishPackage` inputs.
+      # push (to beta-*.*.* / alpha-*.*.*): branch tier is derived from the
+      # branch name itself, and is always a full publish (npm publish + tag + release).
+
+      - name: Determine release parameters
+        id: release
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "branch=${{ inputs.branch }}" >> "$GITHUB_OUTPUT"
+            echo "publish=${{ inputs.publishPackage }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch=${GITHUB_REF_NAME%%-*}" >> "$GITHUB_OUTPUT"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      # ---- end release parameters ----
 
       - name: Use Node.js 24.x
         uses: actions/setup-node@v6
@@ -258,51 +275,51 @@ jobs:
       # whatever version is already committed in package.json.
 
       - name: Fetch shared version script
-        if: inputs.branch != 'main'
+        if: steps.release.outputs.branch != 'main'
         run: wget https://raw.githubusercontent.com/homebridge/.github/latest/.github/npm-version-script.js
         working-directory: .github
 
       - name: Install semver (dependency for shared version script)
-        if: inputs.branch != 'main'
+        if: steps.release.outputs.branch != 'main'
         run: npm install semver
 
       - name: Adjust version to latest published base + tag
-        if: inputs.branch != 'main'
-        run: node .github/npm-version-script.js ${{ github.ref }} ${{ inputs.branch }}
+        if: steps.release.outputs.branch != 'main'
+        run: node .github/npm-version-script.js ${{ github.ref }} ${{ steps.release.outputs.branch }}
 
       - name: Increment prerelease number
-        if: inputs.branch != 'main'
-        run: npm version pre --preid=${{ inputs.branch }} --no-git-tag-version
+        if: steps.release.outputs.branch != 'main'
+        run: npm version pre --preid=${{ steps.release.outputs.branch }} --no-git-tag-version
 
       - name: Show version to be published
         run: node -p "require('./package.json').version"
       # ---- end versioning logic ----
 
       - name: Publish to npm (test)
-        if: inputs.publishPackage && inputs.branch != 'main'
-        run: npm publish --tag ${{ inputs.branch }} --provenance --access public
+        if: steps.release.outputs.publish == 'true' && steps.release.outputs.branch != 'main'
+        run: npm publish --tag ${{ steps.release.outputs.branch }} --provenance --access public
 
       - name: Publish to npm (stable)
-        if: inputs.publishPackage && inputs.branch == 'main'
+        if: steps.release.outputs.publish == 'true' && steps.release.outputs.branch == 'main'
         run: npm publish --tag latest --provenance --access public
 
       - name: Dry run (publishPackage=false)
-        if: '!inputs.publishPackage'
-        run: npm publish --tag ${{ inputs.branch == 'main' && 'latest' || inputs.branch }} --provenance --dry-run
+        if: steps.release.outputs.publish != 'true'
+        run: npm publish --tag ${{ steps.release.outputs.branch == 'main' && 'latest' || steps.release.outputs.branch }} --provenance --dry-run
 
       # ---- Tag + Release only happen on a real publish ----
 
       - name: Get published version from npm
-        if: inputs.publishPackage
+        if: steps.release.outputs.publish == 'true'
         id: version
         run: |
           PKG_NAME=$(node -p "require('./package.json').name")
-          NPM_TAG="${{ inputs.branch == 'main' && 'latest' || inputs.branch }}"
+          NPM_TAG="${{ steps.release.outputs.branch == 'main' && 'latest' || steps.release.outputs.branch }}"
           VERSION=$(npm view "$PKG_NAME@$NPM_TAG" version)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Create and push git tag
-        if: inputs.publishPackage
+        if: steps.release.outputs.publish == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -310,7 +327,7 @@ jobs:
           git push origin "v${{ steps.version.outputs.version }}"
 
       - name: Archive prebuilds per platform
-        if: inputs.publishPackage
+        if: steps.release.outputs.publish == 'true'
         run: |
           cd prebuilds
           for dir in */; do
@@ -321,12 +338,12 @@ jobs:
           ls -la prebuilds-*.tar.gz
 
       - name: Create GitHub Release
-        if: inputs.publishPackage
+        if: steps.release.outputs.publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
           generate_release_notes: true
-          prerelease: ${{ inputs.branch != 'main' }}
+          prerelease: ${{ steps.release.outputs.branch != 'main' }}
           files: |
             prebuilds-*.tar.gz
