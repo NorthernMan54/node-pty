@@ -1,13 +1,29 @@
-name: Prebuilds
+name: Prebuilds & Publish
 
 on:
   push:
     branches:
-      - main
+      - 'beta-*.*.*'
+      - 'alpha-*.*.*'
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Release branch'
+        required: true
+        type: choice
+        options:
+          - main
+          - beta
+          - alpha
+        default: alpha
+      publishPackage:
+        description: '🚀 Publish to npm and GitHub'
+        required: true
+        type: boolean
+        default: false
 
 concurrency:
-  group: prebuilds
+  group: prebuilds-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -168,10 +184,42 @@ jobs:
         include:
           - platform: win32-x64
             runner: windows-2022
+            arch: x64
+          - platform: win32-arm64
+            runner: windows-11-arm
+            arch: arm64
+          - platform: darwin-x64
+            runner: macos-15-intel
+            arch: x64
           - platform: darwin-arm64
-            runner: macos-14
+            runner: macos-15
+            arch: arm64
           - platform: linux-x64
             runner: ubuntu-22.04
+            arch: x64
+          - platform: linux-arm64
+            runner: ubuntu-22.04-arm
+            arch: arm64
+          - platform: linux-arm
+            runner: ubuntu-22.04
+            arch: arm
+            crossCompile: true
+          - platform: linux-ia32
+            runner: ubuntu-22.04
+            arch: ia32
+            crossCompile: true
+          - platform: linux-musl-x64
+            runner: ubuntu-22.04
+            arch: x64
+            musl: true
+          - platform: linux-musl-arm64
+            runner: ubuntu-22.04
+            arch: arm64
+            musl: true
+          - platform: linux-musl-arm
+            runner: ubuntu-22.04
+            arch: arm
+            musl: true
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -231,6 +279,122 @@ jobs:
       - name: Upload combined prebuilds artifact
         uses: actions/upload-artifact@v7
         with:
-          name: prebuilds-${{ github.sha }}
+          name: prebuilds
           path: prebuilds/
           retention-days: 30
+
+  publish:
+    name: Publish to npm
+    if: github.event_name == 'workflow_dispatch'
+    needs: archive
+    runs-on: ubuntu-22.04
+    environment: ${{ inputs.branch == 'main' && 'npm-publish-stable' || 'npm-publish-test' }}
+    permissions:
+      contents: write   # Required to create tags/releases
+      id-token: write   # Required for OIDC publishing to npm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: true   # Needed so git push can authenticate
+          fetch-depth: 0              # Full history so tag/push works cleanly
+
+      - name: Use Node.js 24.x
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download combined prebuilds artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: prebuilds
+          path: prebuilds/
+
+      - name: Make spawn-helper executable
+        run: chmod +x prebuilds/darwin-*/spawn-helper || true
+
+      - name: Install dependencies (skip native build)
+        run: npm ci --ignore-scripts
+
+      - name: Build TypeScript
+        run: npm run build
+
+      # ---- Versioning logic ----
+      # Pre-release only: derive/adjust version from the shared homebridge script,
+      # then bump the prerelease counter. Stable (branch == main) releases publish
+      # whatever version is already committed in package.json.
+
+      - name: Fetch shared version script
+        if: inputs.branch != 'main'
+        run: wget https://raw.githubusercontent.com/homebridge/.github/latest/.github/npm-version-script.js
+        working-directory: .github
+
+      - name: Install semver (dependency for shared version script)
+        if: inputs.branch != 'main'
+        run: npm install semver
+
+      - name: Adjust version to latest published base + tag
+        if: inputs.branch != 'main'
+        run: node .github/npm-version-script.js ${{ github.ref }} ${{ inputs.branch }}
+
+      - name: Increment prerelease number
+        if: inputs.branch != 'main'
+        run: npm version pre --preid=${{ inputs.branch }} --no-git-tag-version
+
+      - name: Show version to be published
+        run: node -p "require('./package.json').version"
+      # ---- end versioning logic ----
+
+      - name: Publish to npm (test)
+        if: inputs.publishPackage && inputs.branch != 'main'
+        run: npm publish --tag ${{ inputs.branch }} --provenance --access public
+
+      - name: Publish to npm (stable)
+        if: inputs.publishPackage && inputs.branch == 'main'
+        run: npm publish --tag latest --provenance --access public
+
+      - name: Dry run (publishPackage=false)
+        if: '!inputs.publishPackage'
+        run: npm publish --tag ${{ inputs.branch == 'main' && 'latest' || inputs.branch }} --provenance --dry-run
+
+      # ---- Tag + Release only happen on a real publish ----
+
+      - name: Get published version from npm
+        if: inputs.publishPackage
+        id: version
+        run: |
+          PKG_NAME=$(node -p "require('./package.json').name")
+          NPM_TAG="${{ inputs.branch == 'main' && 'latest' || inputs.branch }}"
+          VERSION=$(npm view "$PKG_NAME@$NPM_TAG" version)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push git tag
+        if: inputs.publishPackage
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
+
+      - name: Archive prebuilds per platform
+        if: inputs.publishPackage
+        run: |
+          cd prebuilds
+          for dir in */; do
+            platform="${dir%/}"
+            tar -czf "../prebuilds-${platform}.tar.gz" "$platform"
+          done
+          cd ..
+          ls -la prebuilds-*.tar.gz
+
+      - name: Create GitHub Release
+        if: inputs.publishPackage
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          prerelease: ${{ inputs.branch != 'main' }}
+          files: |
+            prebuilds-*.tar.gz
